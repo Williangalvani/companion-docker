@@ -59,13 +59,9 @@ class TagFetcher:
             return self.cache[image_name]
 
         if token is None:
-            token = self._get_token(
-                auth_url="https://auth.docker.io", image_name=image_name
-            )
+            token = self._get_token(auth_url="https://auth.docker.io", image_name=image_name)
         header = {"Authorization": "Bearer {}".format(token)}
-        request = requests.get(
-            "{}/v2/{}/tags/list".format(index_url, image_name), headers=header
-        )
+        request = requests.get("{}/v2/{}/tags/list".format(index_url, image_name), headers=header)
         tags = list(request.json()["tags"])
         self.cache[image_name] = tags
         return tags

@@ -56,9 +56,7 @@ class Supervisor:
     def load_settings(self) -> None:
         """Loads the settings file to self.settings, create it from defaults if not available"""
         config_path = os.path.join(config_folder, "dockers.json")
-        default_config_path = os.path.join(
-            current_path, "static", "dockers.json.default"
-        )
+        default_config_path = os.path.join(current_path, "static", "dockers.json.default")
         if not os.path.exists(config_path):
             shutil.copy(default_config_path, config_path)
 
@@ -185,9 +183,7 @@ class Supervisor:
                     service.update()
                     # Disables service if it fails too much
                     if service.starts > 10 and service.enabled:
-                        print(
-                            "service {service_name} failed to start 10 times, disabling it for sanity reasons..."
-                        )
+                        print("service {service_name} failed to start 10 times, disabling it for sanity reasons...")
                         await self.disable(service_name)
 
             except Exception as error:
