@@ -97,7 +97,7 @@ class FakeLowLevelAPI:
         if not stream or not decode:
             raise NotImplementedError
         for line in self.progress_text:
-            yield {"status": line.format(image), "progressDetail": {}, "id": "e72ac664f4f0"}
+            yield {"status": line.format(image), "progressDetail": {"current": 426, "total": 701}, "id": "e72ac664f4f0"}
 
 
 # The "type: ignore" comment in the next line addresses the fact that TestCase is Any,
