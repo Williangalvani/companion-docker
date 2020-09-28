@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Version Chooser</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/js/vue.js"></script>
+  <script src="/static/js/axios.min.js"></script>
+  <script src="/static/js/jsonpipe.js"></script>
+</head>
+<div id="main">
+  <div v-if="waiting" id="overlay"></div>
+  <h3>Companion ({{ currentVersion }})</h3>
+  <label for="repo">Choose a repository:</label>
+  <input id="repo" @change="loadAvailableversions" v-model="selectedImage" placeholder="edit me">
+  <br>
+  <label for="versions">Choose a version:</label>
+  <select v-model="selectedVersion" name="versions" id="versions">
+    <option :value="'local:' + version.image + ':' + version.tag" v-for="version in availableVersions.local">Local:
+      {{version.tag}}
+    </option>
+    <option :value="'remote:' + version.image + ':' + version.tag" v-for="version in availableVersions.remote">Remote:
+      {{version.tag}}
+    </option>
+  </select>
+  <button @click="setVersion(selectedVersion)">Apply</button>
+  <p class="docker-pull-output">{{this.output}}</p>
+</div>
+
+<body>
+
+  <script>
+    new Vue({
+      el: "#main",
+      data: {
+        imageStatus: {},
+        images: [],
+        imageProgress: {},
+        overallStatus: '',
+        output: '',
+        availableVersions: {},
+        currentVersion: "",
+        selectedVersion: null,
+        waiting: false,
+        selectedImage: "bluerobotics/companion-core"
+      },
+      mounted() {
+        this.loadCurrentVersion()
+        setInterval(this.checkIfBackendIsOnline, 1000)
+      },
+      methods: {
+        checkIfBackendIsOnline() {
+          axios({
+            method: 'get',
+            url: '/v1.0/version/current',
+            timeout: 500, // Let's say you want to wait at least 4 mins
+
+          })
+            .then((response) => {
+              if (this.waiting) {
+                // Add a random query to force clear the cache
+                window.location.href = window.location.href.split("?")[0] + "?" + Math.random()
+              }
+            })
+            .catch((error) => {
+              this.waiting = true
+            });
+        },
+        loadAvailableversions() {
+          axios.get('/v1.0/version/available/' + this.selectedImage).then(response => {
+            this.availableVersions = response.data
+          }).catch(() => { this.availableVersions = {} })
+        },
+        loadCurrentVersion() {
+          return axios.get('/v1.0/version/current/').then(response => {
+            let fullname = response.data
+            this.currentVersion = fullname
+            this.selectedVersion = "local:" + fullname
+            this.selectedImage = fullname.split(":")[0]
+            this.loadAvailableversions()
+          })
+        },
+        setVersion(fullname) {
+          source = fullname.split(':')[0]
+          image = fullname.split(':')[1]
+          tag = fullname.split(':')[2]
+          // "flow" is used to stream the docker data to the client when pulling an image
+          // The data is described at
+          // https://docker-py.readthedocs.io/en/stable/api.html#docker.api.image.ImageApiMixin.pull
+          jsonpipe.flow(
+            '/v1.0/version/current', {
+            delimiter: "\n\n",
+            "success": function (a) {
+              if (a == "OK") {
+                return
+              }
+
+              if ('id' in a) {
+                let id = a['id']
+                if (!(this.images.includes(id))) {
+                  this.images.push(id)
+                }
+                if ('progress' in a) {
+                  this.imageProgress[id] = a['progress']
+                }
+                if ('status' in a) {
+                  this.imageStatus[id] = a['status']
+                }
+              } else {
+                this.overallStatus = a['status']
+              }
+              this.output = ""
+              for (let image of this.images) {
+                this.output = this.output + `[${image}] ${this.imageStatus[image]}  ${this.imageProgress[image] || ''}\n`
+              }
+              this.output = this.output + `${this.overallStatus}\n`
+            }.bind(this),
+            "error": function (a) { console.log(a) },
+            method: "POST",
+            data: JSON.stringify({
+              image: image,
+              tag: tag,
+              pull: source === 'remote'
+            }),
+          }
+          )
+        },
+
+      }
+    });
+  </script>
+</body>
+
+</html>
