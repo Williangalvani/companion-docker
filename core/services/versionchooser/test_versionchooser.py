@@ -55,11 +55,11 @@ version = {"tag": "master", "image": "bluerobotics/companion-core", "pull": Fals
 
 
 @pytest.mark.asyncio
-@mock.patch("aiohttp.web.StreamResponse.prepare")
-@mock.patch("aiohttp.web.StreamResponse.write")
+@mock.patch("aiohttp.web.StreamResponse.write", new_callable=AsyncMock)
 @mock.patch("docker.client.ContainerCollection.get")
+@mock.patch("aiohttp.web.StreamResponse.prepare")
 async def test_set_version(
-    container_get_mock: mock.MagicMock, write_mock: mock.MagicMock, prepare_mock: mock.MagicMock
+    prepare_mock: mock.MagicMock, container_get_mock: mock.MagicMock, write_mock: AsyncMock
 ) -> None:
     client = docker.client.from_env()
     chooser = VersionChooser(client)
