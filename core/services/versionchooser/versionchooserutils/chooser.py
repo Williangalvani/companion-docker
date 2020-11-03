@@ -100,7 +100,6 @@ class VersionChooser:
         for image in client.images.list(image_name):
             for tag in image.tags:
                 output["local"].append({"image": image_name, "tag": tag.split(":")[-1]})
-
         online_tags = await TagFetcher().fetch_remote_tags(image_name)
         for tag in online_tags:
             output["remote"].append({"image": image_name, "tag": tag})

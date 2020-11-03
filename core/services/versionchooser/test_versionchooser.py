@@ -44,7 +44,7 @@ SAMPLE_JSON = """{
 @mock.patch("json.load", return_value=json.loads(SAMPLE_JSON))
 async def test_get_version(json_mock: mock.MagicMock) -> None:
     """ Tests if VersionChooser.get_version is reading SAMPLE_JSON properly"""
-    chooser = VersionChooser(docker.client.from_env())
+    chooser = VersionChooser(mock.MagicMock())
     with mock.patch("builtins.open", mock.mock_open(read_data=SAMPLE_JSON)):
         result = await chooser.get_version()
         assert result.text == "bluerobotics/companion-core:master"
@@ -56,12 +56,11 @@ version = {"tag": "master", "image": "bluerobotics/companion-core", "pull": Fals
 
 @pytest.mark.asyncio
 @mock.patch("aiohttp.web.StreamResponse.write", new_callable=AsyncMock)
-@mock.patch("docker.client.ContainerCollection.get")
 @mock.patch("aiohttp.web.StreamResponse.prepare")
 async def test_set_version(
-    prepare_mock: mock.MagicMock, container_get_mock: mock.MagicMock, write_mock: AsyncMock
+    prepare_mock: mock.MagicMock, write_mock: AsyncMock
 ) -> None:
-    client = docker.client.from_env()
+    client = mock.MagicMock()
     chooser = VersionChooser(client)
     with mock.patch("builtins.open", mock.mock_open(read_data=SAMPLE_JSON)):
 
@@ -76,7 +75,6 @@ async def test_set_version(
             'a_playground",\n        "mode": "rw"\n      }\n    },\n    "privileged": true\n  }\n}'
         )
         assert result.status == 200
-        assert len(container_get_mock.mock_calls) > 0
         assert len(write_mock.mock_calls) > 0
         assert len(prepare_mock.mock_calls) > 0
 
@@ -84,7 +82,7 @@ async def test_set_version(
 @pytest.mark.asyncio
 @mock.patch("json.load", return_value={})
 async def test_set_version_invalid_settings(json_mock: mock.MagicMock) -> None:
-    client = docker.client.from_env()
+    client = mock.MagicMock()
     chooser = VersionChooser(client)
     with mock.patch("builtins.open", mock.mock_open(read_data="{}")):
         request_mock = AsyncMock()
@@ -108,10 +106,27 @@ image_list = [
 ]
 
 
+
+@pytest.mark.asyncio
+@mock.patch("docker.client.ImageCollection.list", return_value=image_list)
+@mock.patch("aiohttp.client.ClientSession.get")
+async def test_get_available_versions_dockerhub_unavailable(get_mock: mock.MagicMock, json_mock: mock.MagicMock) -> None:
+    get_mock.configure_mock(status=500)
+    chooser = VersionChooser(mock.MagicMock())
+    result = await chooser.get_available_versions("companion-core", "bluerobotics")
+    data = json.loads(result.text)
+
+    assert "local" in data
+    assert "remote" in data
+    assert data["local"][0]["tag"] == "test1"
+    assert data["local"][1]["tag"] == "test2"
+    assert len(json_mock.mock_calls) > 0
+
+
 @pytest.mark.asyncio
 @mock.patch("docker.client.ImageCollection.list", return_value=image_list)
 async def test_get_available_versions(json_mock: mock.MagicMock) -> None:
-    chooser = VersionChooser(docker.client.from_env())
+    chooser = VersionChooser(mock.MagicMock())
     result = await chooser.get_available_versions("companion-core", "bluerobotics")
     # do it again to trigger the cache
     result = await chooser.get_available_versions("companion-core", "bluerobotics")
@@ -125,7 +140,7 @@ async def test_get_available_versions(json_mock: mock.MagicMock) -> None:
 
 @pytest.mark.asyncio
 async def test_get_version_invalid_file() -> None:
-    client = docker.client.from_env()
+    client = mock.MagicMock()
     with mock.patch("builtins.open", mock.mock_open(read_data="{}")):
         chooser = VersionChooser(client)
         response = await chooser.get_version()
@@ -135,7 +150,7 @@ async def test_get_version_invalid_file() -> None:
 @pytest.mark.asyncio
 @mock.patch("json.load")
 async def test_get_version_json_exception(json_mock: mock.MagicMock) -> None:
-    client = docker.client.from_env()
+    client = mock.MagicMock()
     json_mock.side_effect = Exception()
     with mock.patch("builtins.open", mock.mock_open(read_data="")):
         chooser = VersionChooser(client)
@@ -147,7 +162,7 @@ async def test_get_version_json_exception(json_mock: mock.MagicMock) -> None:
 @pytest.mark.asyncio
 @mock.patch("json.load")
 async def test_set_version_json_exception(json_mock: mock.MagicMock) -> None:
-    client = docker.client.from_env()
+    client = mock.MagicMock()
     json_mock.side_effect = Exception()
     chooser = VersionChooser(client)
     with mock.patch("builtins.open", mock.mock_open(read_data="{}")):
