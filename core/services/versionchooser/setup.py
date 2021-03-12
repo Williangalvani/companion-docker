@@ -41,5 +41,8 @@ setup(
         "appdirs",
         "pytest-asyncio",
         "asyncmock",
+        "werkzeug",
+        "attr",
+        "yaml",
     ],
 )
