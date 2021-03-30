@@ -22,11 +22,12 @@ static_folder = pathlib.Path.joinpath(current_folder, "static")
 
 for filename, url in static_files.items():
     path = pathlib.Path.joinpath(static_folder, filename)
+    print(filename, path, path.parent)
+    path.parent.mkdir(exist_ok=True)
     try:
         urllib.request.urlretrieve(url, path)
     except Exception as error:
         warn(f"unable to open url {url}, error {error}")
-    print(url)
 
 setup(
     name="versionchooser_service",

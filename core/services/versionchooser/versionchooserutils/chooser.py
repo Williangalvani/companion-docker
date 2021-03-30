@@ -7,7 +7,7 @@ import docker
 from aiohttp import web
 from versionchooserutils.dockerhub import TagFetcher
 
-DOCKER_CONFIG_PATH = pathlib.Path(appdirs.user_config_dir("companion"), "startup.json")
+DOCKER_CONFIG_PATH = pathlib.Path(appdirs.user_config_dir("bootstrap"), "startup.json")
 
 current_folder = pathlib.Path(__file__).parent.parent.absolute()
 STATIC_FOLDER = pathlib.Path.joinpath(current_folder, "static")
