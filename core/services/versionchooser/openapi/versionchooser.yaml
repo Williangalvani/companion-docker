@@ -49,13 +49,13 @@ paths:
           name: repository
           schema:
             type: string
-          required: false
-          example: bluerobotics
-        - in: path
-          name: name
+          x-nullable: true
+          required: true
+        - name: name
+          in: path
           schema:
             type: string
-          required: false
+          required: true
           example: companion-core
       responses:
         '200':
