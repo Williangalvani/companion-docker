@@ -1,134 +1,293 @@
 <!DOCTYPE html>
 <html>
 
+
 <head>
   <title>Version Chooser</title>
   <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/css/metro-all.css">
   <script src="/static/js/vue.js"></script>
   <script src="/static/js/axios.min.js"></script>
   <script src="/static/js/jsonpipe.js"></script>
+  <script src="/static/js/timeago.js"></script>
+  <script src="/static/js/jquery.js"></script>
+  <script src="/static/js/metro.js"></script>
 </head>
-<div id="main">
-  <div v-if="waiting" id="overlay"></div>
-  <h3>Companion ({{ currentVersion }})</h3>
-  <label for="repo">Choose a repository:</label>
-  <input id="repo" @change="loadAvailableversions" v-model="selectedImage" placeholder="edit me">
-  <br>
-  <label for="versions">Choose a version:</label>
-  <select v-model="selectedVersion" name="versions" id="versions">
-    <option :value="'local:' + version.image + ':' + version.tag" v-for="version in availableVersions.local">Local:
-      {{version.tag}}
-    </option>
-    <option :value="'remote:' + version.image + ':' + version.tag" v-for="version in availableVersions.remote">Remote:
-      {{version.tag}}
-    </option>
-  </select>
-  <button @click="setVersion(selectedVersion)">Apply</button>
-  <p class="docker-pull-output">{{this.output}}</p>
-</div>
 
 <body>
 
-  <script>
-    new Vue({
-      el: "#main",
-      data: {
-        imageStatus: {},
-        images: [],
-        imageProgress: {},
-        overallStatus: '',
-        output: '',
-        availableVersions: {},
-        currentVersion: "",
-        selectedVersion: null,
-        waiting: false,
-        selectedImage: "bluerobotics/companion-core"
-      },
-      mounted() {
-        this.loadCurrentVersion()
-        setInterval(this.checkIfBackendIsOnline, 1000)
-      },
-      methods: {
-        checkIfBackendIsOnline() {
-          axios({
-            method: 'get',
-            url: '/v1.0/version/current',
-            timeout: 500, // Let's say you want to wait at least 4 mins
+  <div id="app">
+    <div class="container pt-4">
+      <h1>Version Chooser Alternate</h1>
+      <h3>Available Versions:</h3>
+      <div class="p-4 m-3">
+        <div class="grid">
+          <div class="p-4 m-3">
+            <h4 class="mt-0">Local Versions</h4>
+            <div class="row bg-white m-4" v-for="image in availableVersions['local']">
+              <div class="cell-5">
+                <div class="ml-3 mt-1" style="display: inline-block; vertical-align: middle">
+                  <span class="caption">
+                    <b>{{image.tag}}</b>
+                    <code :title="image.id">{{image.id | shortid}}</code>
+                    <span class="badge inline bg-green fg-white" v-if="image.id === currentVersion.id">Current</span>
+                    <span class="badge inline bg-blue fg-white" v-if="image.id === currentVersion.id">Local
+                      changes</span>
+                  </span>
+                </div>
+              </div>
+              <div class="cell-3">
+                <span v-bind:title="Date(image.date)">Crated {{image.date | astimeago}}</span>
+              </div>
+              <div class="cell-4" style="text-align: right;">
+                <div>
+                  <span v-if="image.id === currentVersion.id" class="button info disabled">
+                    <span class="mif-undo m-1"></span>
+                    Discard changes
 
-          })
-            .then((response) => {
-              if (this.waiting) {
-                // Add a random query to force clear the cache
-                window.location.href = window.location.href.split("?")[0] + "?" + Math.random()
-              }
-            })
-            .catch((error) => {
-              this.waiting = true
-            });
-        },
-        loadAvailableversions() {
-          axios.get('/v1.0/version/available/' + this.selectedImage).then(response => {
-            this.availableVersions = response.data
-          }).catch(() => { this.availableVersions = {} })
-        },
-        loadCurrentVersion() {
-          return axios.get('/v1.0/version/current/').then(response => {
-            let fullname = response.data
-            this.currentVersion = fullname
-            this.selectedVersion = "local:" + fullname
-            this.selectedImage = fullname.split(":")[0]
-            this.loadAvailableversions()
-          })
-        },
-        setVersion(fullname) {
-          source = fullname.split(':')[0]
-          image = fullname.split(':')[1]
-          tag = fullname.split(':')[2]
-          // "flow" is used to stream the docker data to the client when pulling an image
-          // The data is described at
-          // https://docker-py.readthedocs.io/en/stable/api.html#docker.api.image.ImageApiMixin.pull
-          jsonpipe.flow(
-            '/v1.0/version/current', {
-            delimiter: "\n\n",
-            "success": function (a) {
-              if (a == "OK") {
-                return
-              }
+                  </span>
+                  <span v-if="image.id === currentVersion.id" class="button primary">
+                    <span class="mif-shift m-1"></span>
+                    Upgrade
 
-              if ('id' in a) {
-                let id = a['id']
-                if (!(this.images.includes(id))) {
-                  this.images.push(id)
-                }
-                if ('progress' in a) {
-                  this.imageProgress[id] = a['progress']
-                }
-                if ('status' in a) {
-                  this.imageStatus[id] = a['status']
-                }
-              } else {
-                this.overallStatus = a['status']
-              }
-              this.output = ""
-              for (let image of this.images) {
-                this.output = this.output + `[${image}] ${this.imageStatus[image]}  ${this.imageProgress[image] || ''}\n`
-              }
-              this.output = this.output + `${this.overallStatus}\n`
-            }.bind(this),
-            "error": function (a) { console.log(a) },
-            method: "POST",
-            data: JSON.stringify({
-              image: image,
-              tag: tag,
-              pull: source === 'remote'
-            }),
-          }
-          )
-        },
+                  </span>
+                  <span v-if="image.id !== currentVersion.id" class="button alert disabled">
+                    <span class="mif-bin m-1"></span>
+                    Delete
 
-      }
-    });
-  </script>
+                  </span>
+                  <span
+                    v-if="image.id !== currentVersion.id"
+                    class="button success"
+                    @click="setVersion(`local:${image.image}:${image.tag}`)"
+                  >
+                    <span class="mif-checkmark m-1"></span>
+                    Apply
+
+                  </span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="grid">
+          <div class="p-4 m-3">
+            <h4 class="mt-0">Remote Versions</h4>
+            <span class="ml-4">
+              <label>Repository</label>
+              <input type="text" required="" placeholder="bluerobotics/companion-core" id="repo" @change="loadAvailableversions" v-model="selectedImage" placeholder="edit me">
+            </span>
+            <div class="row bg-white m-4" v-for="image in availableVersions['remote']">
+              <div class="cell-5">
+                <div class="ml-3 mt-1" style="display: inline-block; vertical-align: middle">
+                  <span class="caption">
+                    <b>{{image.tag}}</b>
+                    <code :title="image.id">{{image.id | shortid}}</code>
+                  </span>
+                </div>
+              </div>
+              <div class="cell-3">
+                <span v-bind:title="Date(image.date)">Last updated {{image.date | astimeago}}</span>
+              </div>
+              <div class="cell-4" style="text-align: right;">
+                <div>
+                  <span
+                  class="button primary"
+                  @click="this.Metro.infobox.open('#infobox'); setVersion(`remote:${image.image}:${image.tag}`)"
+                  >
+                    <span class="mif-download m-1"></span>
+                    Pull and Apply
+
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="infobox" class="info-box" data-role="infobox" data-width="700p">
+      <span class="button square closer"></span>
+      <div class="info-box-content">
+        <h3>Pulling...</h3>
+        <p class="docker-pull-output">{{this.output}}</p>
+      </div>
+    </div>
+  </div>
+
+
+<!--
+  <div id="main">
+    <div v-if="waiting" id="overlay"></div>
+    <h3>Companion ({{ `${currentVersion.image}:${currentVersion.tag}` }})</h3>
+    <div class="row">
+      <div class="column">
+        <label for="repo">Choose a repository:</label>
+        <input id="repo" @change="loadAvailableversions" v-model="selectedImage" placeholder="edit me">
+        <br>
+        <label for="versions">Choose a version:</label>
+        <select v-model="selectedVersion" name="versions" id="versions">
+          <option :value="'local:' + version.image + ':' + version.tag" v-for="version in availableVersions.local">
+            Local:
+            {{version.tag}}
+          </option>
+          <option :value="'remote:' + version.image + ':' + version.tag" v-for="version in availableVersions.remote">
+            Remote:
+            {{version.tag}}
+          </option>
+        </select>
+        <button @click="setVersion(selectedVersion)">Apply</button>
+        <p class="docker-pull-output">{{this.output}}</p>
+      </div>
+      <div class="column">
+        <h3> Available Versions</h3>
+        <pre>
+          <code>
+    {{JSON.stringify(availableVersions, null, 2)}}
+          </code>
+          </pre>
+        <h3> Current Version</h3>
+        <pre>
+          <code>
+    {{JSON.stringify(currentVersion, null, 2)}}
+          </code>
+          </pre>
+      </div>
+    </div>
+  </div>-->
 </body>
+
+<script>
+  new Vue({
+    el: "#app",
+    data: {
+
+      imageStatus: {},
+      images: [],
+      imageProgress: {},
+      overallStatus: '',
+      output: '',
+      availableVersions: {},
+      currentVersion: "",
+      selectedVersion: null,
+      waiting: false,
+      selectedImage: "bluerobotics/companion-core",
+      Metro: null,
+    },
+    mounted() {
+      this.Metro = Metro.init();
+      this.loadCurrentVersion()
+      setInterval(this.checkIfBackendIsOnline, 1000)
+    },
+    methods: {
+      checkIfBackendIsOnline() {
+        axios({
+          method: 'get',
+          url: '/v1.0/version/current',
+          timeout: 500, // Let's say you want to wait at least 4 mins
+
+        })
+          .then((response) => {
+            if (this.waiting) {
+              // Add a random query to force clear the cache
+              window.location.href = window.location.href.split("?")[0] + "?" + Math.random()
+            }
+          })
+          .catch((error) => {
+            this.waiting = true
+          });
+      },
+      loadAvailableversions() {
+        axios.get('/v1.0/version/available/' + this.selectedImage).then(response => {
+          this.availableVersions = response.data
+        }).catch(() => { this.availableVersions = {} })
+      },
+      loadCurrentVersion() {
+        return axios.get('/v1.0/version/current/').then(response => {
+          const image = response.data
+          this.currentVersion = image
+          let fullname = `${image.image}:${image.tag}`
+          this.selectedVersion = "local:" + fullname
+          this.selectedImage = fullname.split(":")[0]
+          this.loadAvailableversions()
+        })
+      },
+      setVersion(fullname) {
+        source = fullname.split(':')[0]
+        image = fullname.split(':')[1]
+        tag = fullname.split(':')[2]
+        // "flow" is used to stream the docker data to the client when pulling an image
+        // The data is described at
+        // https://docker-py.readthedocs.io/en/stable/api.html#docker.api.image.ImageApiMixin.pull
+        jsonpipe.flow(
+          '/v1.0/version/current', {
+          delimiter: "\n\n",
+          "success": function (a) {
+            if (a == "OK") {
+              return
+            }
+
+            if ('id' in a) {
+              let id = a['id']
+              if (!(this.images.includes(id))) {
+                this.images.push(id)
+              }
+              if ('progress' in a) {
+                this.imageProgress[id] = a['progress']
+              }
+              if ('status' in a) {
+                this.imageStatus[id] = a['status']
+              }
+            } else {
+              this.overallStatus = a['status']
+            }
+            this.output = ""
+            for (let image of this.images) {
+              this.output = this.output + `[${image}] ${this.imageStatus[image]}  ${this.imageProgress[image] || ''}\n`
+            }
+            this.output = this.output + `${this.overallStatus}\n`
+          }.bind(this),
+          "error": function (a) { console.log(a) },
+          method: "POST",
+          data: JSON.stringify({
+            image: image,
+            tag: tag,
+            pull: source === 'remote'
+          }),
+        }
+        )
+      },
+
+    },
+    filters: {
+      astimeago: function (value) {
+        return timeago().format(new Date(Date.parse(value)), 'twitter')
+      },
+      shortid: function (value) {
+        return value.substring(0, 8)
+      }
+    }
+  });
+</script>
+<style>
+body {
+    background-color: #ECF0F5;
+}
+
+.panel .panel-title .btn-custom {
+  width: auto;
+}
+
+.disabled {
+  cursor:not-allowed;
+}
+
+#repo {
+  width: 50%;
+}
+
+</style>
+
 
 </html>

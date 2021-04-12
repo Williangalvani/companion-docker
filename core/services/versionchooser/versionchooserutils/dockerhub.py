@@ -8,7 +8,8 @@ from typing import Dict, List, Optional
 from warnings import warn
 
 import aiohttp
-
+import asyncio
+import json
 
 # pylint: disable=too-few-public-methods
 class TagFetcher:
@@ -16,6 +17,7 @@ class TagFetcher:
 
     # Holds the information once it is fetched so we don't do it multiple times
     cache: Dict[str, List[str]] = {}
+    index_url: str = "https://index.docker.io"
 
     @staticmethod
     async def _get_token(auth_url: str, image_name: str) -> str:
@@ -43,10 +45,27 @@ class TagFetcher:
                     raise Exception("Could not get auth token")
                 return str((await resp.json())["token"])
 
+    async def fetch_metadata(self, image: str, tag: str, header: str) -> Dict[str, str]:
+        """Fetchs metadata for a given tag. We are interested in id and creation date"""
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f"{self.index_url}/v2/{image}/manifests/{tag}", headers=header) as resp:
+                if resp.status != 200:
+                    warn("Error status {}".format(resp.status))
+                    raise Exception("Failed getting tags from DockerHub!")
+                data = await resp.text()
+                meta = json.loads(json.loads(data)["history"][0]["v1Compatibility"])
+                date = meta["created"]
+                tag_id = meta["id"]
+                return {
+                    "image": image,
+                    "tag": tag,
+                    "date": date,
+                    "id": tag_id
+                }
+
     async def fetch_remote_tags(
         self,
         image_name: str,
-        index_url: str = "https://index.docker.io",
         token: Optional[str] = None,
     ) -> List[str]:
         """Fetches the tags available for an image in DockerHub
@@ -71,9 +90,8 @@ class TagFetcher:
             print(type(error), error)
             return []
 
-        # request = requests.get("{}/v2/{}/tags/list".format(index_url, image_name), headers=header).json()
         async with aiohttp.ClientSession() as session:
-            async with session.get("{}/v2/{}/tags/list".format(index_url, image_name), headers=header) as resp:
+            async with session.get("{}/v2/{}/tags/list".format(self.index_url, image_name), headers=header) as resp:
                 if resp.status != 200:
                     warn("Error status {}".format(resp.status))
                     raise Exception("Failed getting tags from DockerHub!")
@@ -81,6 +99,6 @@ class TagFetcher:
 
                 if "tags" not in data:
                     return []
-                tags = list(data["tags"])
+                tags = [await self.fetch_metadata(image_name, tag, header) for tag in list(data["tags"])]
                 self.cache[image_name] = tags
                 return tags

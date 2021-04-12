@@ -18,17 +18,29 @@ class VersionChooser:
         self.client = client
 
     async def index(self, _request: web.Request) -> web.FileResponse:
-        return web.FileResponse(str(STATIC_FOLDER) + "/index.html", headers={"cache-control": "no-cache"})
+        return web.FileResponse(
+            str(STATIC_FOLDER) + "/index.html", headers={"cache-control": "no-cache"}
+        )
 
     async def get_version(self) -> web.Response:
         with open(DOCKER_CONFIG_PATH) as startup_file:
             try:
                 core = json.load(startup_file)["core"]
-                image = core["image"]
                 tag = core["tag"]
-                return web.Response(text=f"{image}:{tag}")
-            except KeyError:
-                return web.Response(status=500, text="Invalid version file")
+                image_name = core["image"]
+                full_name = f"{image_name}:{tag}"
+                image = self.client.images.get(full_name)
+                print(image)
+                output = {
+                    "image": image_name,
+                    "tag": tag,
+                    "date": image.attrs["Created"],
+                    "id": image.id.replace("sha256:", ""),
+                }
+                print(output)
+                return web.json_response(output)
+            except KeyError as e:
+                return web.Response(status=500, text=f"Invalid version file: {e}")
             except Exception as error:
                 return web.Response(status=500, text=f"Error: {type(error)}: {error}")
 
@@ -36,7 +48,9 @@ class VersionChooser:
     def is_valid_version(_image: str, _version: str) -> bool:
         return True
 
-    async def apply_version(self, request: web.Request, image: str, tag: str, pull: bool) -> web.StreamResponse:
+    async def apply_version(
+        self, request: web.Request, image: str, tag: str, pull: bool
+    ) -> web.StreamResponse:
         """Applies a new version.
 
         Sets the version in startup.json, launches bootstrap, and kills companion_core
@@ -96,12 +110,17 @@ class VersionChooser:
     async def get_available_versions(self, name: str, repository: str) -> web.Response:
         output: Dict[str, List[Dict[str, str]]] = {"local": [], "remote": []}
         image_name = f"{repository}/{name}"
-        client = docker.client.from_env()
-        for image in client.images.list(image_name):
+        for image in self.client.images.list(image_name):
             for tag in image.tags:
-                output["local"].append({"image": image_name, "tag": tag.split(":")[-1]})
+                output["local"].append(
+                    {
+                        "image": image_name,
+                        "tag": tag.split(":")[-1],
+                        "date": image.attrs["Created"],
+                        "id": image.id.replace("sha256:", ""),
+                    }
+                )
         online_tags = await TagFetcher().fetch_remote_tags(image_name)
-        for tag in online_tags:
-            output["remote"].append({"image": image_name, "tag": tag})
+        output["remote"].extend(online_tags)
 
         return web.json_response(output)

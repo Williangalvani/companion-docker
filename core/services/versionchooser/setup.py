@@ -15,6 +15,12 @@ static_files = {
     "js/jsonpipe.js": "https://raw.githubusercontent.com/eBay/jsonpipe/master/jsonpipe.js",
     "js/polyfill.min.js": "https://polyfill.io/v3/polyfill.min.js?features=es2015,IntersectionObserver",
     "js/vue.js": "https://unpkg.com/vue@latest/dist/vue.js",
+    "js/timeago.js": "https://cdnjs.cloudflare.com/ajax/libs/timeago.js/2.0.2/timeago.min.js",
+    "js/metro.js": "https://cdn.metroui.org.ua/v4/js/metro.min.js",
+    "js/jquery.js": "https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js",
+    "css/metro-all.css": "https://cdnjs.cloudflare.com/ajax/libs/metro/4.4.3/css/metro-all.css",
+    "mif/metro.woff": "https://cdnjs.cloudflare.com/ajax/libs/metro/4.4.3/mif/metro.woff",
+    "mif/metro.ttf": "https://cdnjs.cloudflare.com/ajax/libs/metro/4.4.3/mif/metro.ttf"
 }
 
 current_folder = pathlib.Path(__file__).parent.absolute()
@@ -35,14 +41,14 @@ setup(
     description="Blue Robotics Ardusub Companion Version Chooser",
     license="MIT",
     install_requires=[
-        "connexion[swagger-ui, aiohttp]",
-        "docker",
-        "aiohttp==3.6.2",
-        "appdirs",
-        "pytest-asyncio",
-        "asyncmock",
-        "werkzeug",
-        "attr",
-        "yaml",
+        "aiohttp-jinja2 == 1.4.2",
+        "aiohttp == 3.6.3",
+        "connexion[swagger-ui, aiohttp] == 2.7.0",
+        "docker == 4.4.4",
+        "appdirs == 1.4.4",
+        "pytest-asyncio == 0.14.0",
+        "asyncmock == 0.4.2",
+        "werkzeug == 2.0.0rc3",
+        "attrs == 20.3.0",
     ],
 )

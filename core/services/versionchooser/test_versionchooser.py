@@ -39,16 +39,43 @@ SAMPLE_JSON = """{
     }
 }"""
 
+SAMPLE_IMAGE = json.loads(
+    """{
+   "attrs":{
+      "date":"2021-04-09T17:51:18.065721638Z"
+   },
+   "id":"856fdf5e66c9b3697c25015556e7895c9066febb1a8ac8657a4eb41f2fc95a57"
+}"""
+)
+
 
 @pytest.mark.asyncio
-@mock.patch("json.load", return_value=json.loads(SAMPLE_JSON))
-async def test_get_version(json_mock: mock.MagicMock) -> None:
-    """ Tests if VersionChooser.get_version is reading SAMPLE_JSON properly"""
-    chooser = VersionChooser(mock.MagicMock())
+async def test_get_version() -> None:
+    """Tests if VersionChooser.get_version is reading SAMPLE_JSON properly
+
+    Interacts with:
+        - docker client (get images)
+        - Settigns file
+    """
+    client_mock = mock.MagicMock()
+    chooser = VersionChooser(client_mock)
+
+    attrs = {
+        "images.get.return_value.id": "856fdf5e66c9b3697c25015556e7895c9066febb1a8ac8657a4eb41f2fc95a57",
+        "images.get.return_value.attrs.__getitem__.return_value": {
+            "date": "2021-04-09T17:51:18.065721638Z"
+        },
+    }
+    client_mock.configure_mock(**attrs)
+
+    # Mock so it doesn't try to read a real file from the filesystem
     with mock.patch("builtins.open", mock.mock_open(read_data=SAMPLE_JSON)):
-        result = await chooser.get_version()
-        assert result.text == "bluerobotics/companion-core:master"
-        assert len(json_mock.mock_calls) > 0
+
+        response = await chooser.get_version()
+        result = json.loads(response.text)
+        assert result["image"] == "bluerobotics/companion-core"
+        assert result["tag"] == "master"
+        assert len(client_mock.mock_calls) > 0
 
 
 version = {"tag": "master", "image": "bluerobotics/companion-core", "pull": False}
@@ -57,9 +84,7 @@ version = {"tag": "master", "image": "bluerobotics/companion-core", "pull": Fals
 @pytest.mark.asyncio
 @mock.patch("aiohttp.web.StreamResponse.write", new_callable=AsyncMock)
 @mock.patch("aiohttp.web.StreamResponse.prepare")
-async def test_set_version(
-    prepare_mock: mock.MagicMock, write_mock: AsyncMock
-) -> None:
+async def test_set_version(prepare_mock: mock.MagicMock, write_mock: AsyncMock) -> None:
     client = mock.MagicMock()
     chooser = VersionChooser(client)
     with mock.patch("builtins.open", mock.mock_open(read_data=SAMPLE_JSON)):
@@ -94,48 +119,57 @@ async def test_set_version_invalid_settings(json_mock: mock.MagicMock) -> None:
 
 image_list = [
     mock.MagicMock(
-        tags=[
-            "test1",
-        ]
+        attrs={"Created": "2021-04-09T17:51:18.065721638Z"},
+        id="856fdf5e66c9b3697c25015556e7895c9066febb1a8ac8657a4eb41f2fc95a57",
+        tags=["test1"],
     ),
     mock.MagicMock(
-        tags=[
-            "test2",
-        ]
+        attrs={"Created": "2021-04-09T17:51:18.065721638Z"},
+        id="856fdf5e66c9b36remoteID856fdf5e66c9b36",
+        tags=["test2"],
     ),
 ]
 
 
-
 @pytest.mark.asyncio
-@mock.patch("docker.client.ImageCollection.list", return_value=image_list)
+# @mock.patch("docker.client.ImageCollection.list", return_value=image_list)
 @mock.patch("aiohttp.client.ClientSession.get")
-async def test_get_available_versions_dockerhub_unavailable(get_mock: mock.MagicMock, json_mock: mock.MagicMock) -> None:
+async def test_get_available_versions_dockerhub_unavailable(
+    get_mock: mock.MagicMock,
+) -> None:
     get_mock.configure_mock(status=500)
-    chooser = VersionChooser(mock.MagicMock())
+    client_mock = mock.MagicMock()
+    attrs = {"images.list.return_value": image_list}
+    client_mock.configure_mock(**attrs)
+    chooser = VersionChooser(client_mock)
     result = await chooser.get_available_versions("companion-core", "bluerobotics")
     data = json.loads(result.text)
-
+    print(data)
     assert "local" in data
     assert "remote" in data
     assert data["local"][0]["tag"] == "test1"
     assert data["local"][1]["tag"] == "test2"
-    assert len(json_mock.mock_calls) > 0
+    assert len(client_mock.mock_calls) > 0
 
 
 @pytest.mark.asyncio
-@mock.patch("docker.client.ImageCollection.list", return_value=image_list)
-async def test_get_available_versions(json_mock: mock.MagicMock) -> None:
-    chooser = VersionChooser(mock.MagicMock())
+
+async def test_get_available_versions() -> None:
+    client_mock = mock.MagicMock()
+    attrs = {"images.list.return_value": image_list}
+    client_mock.configure_mock(**attrs)
+
+    chooser = VersionChooser(client_mock)
     result = await chooser.get_available_versions("companion-core", "bluerobotics")
     # do it again to trigger the cache
     result = await chooser.get_available_versions("companion-core", "bluerobotics")
     data = json.loads(result.text)
     assert "local" in data
     assert "remote" in data
+    print(data)
     assert data["local"][0]["tag"] == "test1"
     assert data["local"][1]["tag"] == "test2"
-    assert len(json_mock.mock_calls) > 0
+    assert len(client_mock.mock_calls) > 0
 
 
 @pytest.mark.asyncio
