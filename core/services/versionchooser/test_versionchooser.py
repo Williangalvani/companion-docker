@@ -2,7 +2,6 @@ import json
 import sys
 from unittest import mock
 
-import docker
 import pytest
 from versionchooserutils.chooser import VersionChooser
 
@@ -62,9 +61,7 @@ async def test_get_version() -> None:
 
     attrs = {
         "images.get.return_value.id": "856fdf5e66c9b3697c25015556e7895c9066febb1a8ac8657a4eb41f2fc95a57",
-        "images.get.return_value.attrs.__getitem__.return_value": {
-            "date": "2021-04-09T17:51:18.065721638Z"
-        },
+        "images.get.return_value.attrs.__getitem__.return_value": {"date": "2021-04-09T17:51:18.065721638Z"},
     }
     client_mock.configure_mock(**attrs)
 
@@ -153,7 +150,6 @@ async def test_get_available_versions_dockerhub_unavailable(
 
 
 @pytest.mark.asyncio
-
 async def test_get_available_versions() -> None:
     client_mock = mock.MagicMock()
     attrs = {"images.list.return_value": image_list}

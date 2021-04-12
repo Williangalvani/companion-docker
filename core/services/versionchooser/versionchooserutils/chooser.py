@@ -18,9 +18,7 @@ class VersionChooser:
         self.client = client
 
     async def index(self, _request: web.Request) -> web.FileResponse:
-        return web.FileResponse(
-            str(STATIC_FOLDER) + "/index.html", headers={"cache-control": "no-cache"}
-        )
+        return web.FileResponse(str(STATIC_FOLDER) + "/index.html", headers={"cache-control": "no-cache"})
 
     async def get_version(self) -> web.Response:
         with open(DOCKER_CONFIG_PATH) as startup_file:
@@ -48,9 +46,7 @@ class VersionChooser:
     def is_valid_version(_image: str, _version: str) -> bool:
         return True
 
-    async def apply_version(
-        self, request: web.Request, image: str, tag: str, pull: bool
-    ) -> web.StreamResponse:
+    async def apply_version(self, request: web.Request, image: str, tag: str, pull: bool) -> web.StreamResponse:
         """Applies a new version.
 
         Sets the version in startup.json, launches bootstrap, and kills companion_core

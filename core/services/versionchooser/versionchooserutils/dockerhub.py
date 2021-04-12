@@ -4,19 +4,18 @@ Responsible for interacting with dockerhub
 adapted from https://github.com/al4/docker-registry-list
 """
 
+import json
 from typing import Dict, List, Optional
 from warnings import warn
 
 import aiohttp
-import asyncio
-import json
 
-# pylint: disable=too-few-public-methods
+
 class TagFetcher:
     """Fetches remote tags for a given image"""
 
     # Holds the information once it is fetched so we don't do it multiple times
-    cache: Dict[str, List[str]] = {}
+    cache: Dict[str, List[Dict[str, str]]] = {}
     index_url: str = "https://index.docker.io"
 
     @staticmethod
@@ -45,7 +44,7 @@ class TagFetcher:
                     raise Exception("Could not get auth token")
                 return str((await resp.json())["token"])
 
-    async def fetch_metadata(self, image: str, tag: str, header: str) -> Dict[str, str]:
+    async def fetch_metadata(self, image: str, tag: str, header: Dict[str, str]) -> Dict[str, str]:
         """Fetchs metadata for a given tag. We are interested in id and creation date"""
         async with aiohttp.ClientSession() as session:
             async with session.get(f"{self.index_url}/v2/{image}/manifests/{tag}", headers=header) as resp:
@@ -56,18 +55,13 @@ class TagFetcher:
                 meta = json.loads(json.loads(data)["history"][0]["v1Compatibility"])
                 date = meta["created"]
                 tag_id = meta["id"]
-                return {
-                    "image": image,
-                    "tag": tag,
-                    "date": date,
-                    "id": tag_id
-                }
+                return {"image": image, "tag": tag, "date": date, "id": tag_id}
 
     async def fetch_remote_tags(
         self,
         image_name: str,
         token: Optional[str] = None,
-    ) -> List[str]:
+    ) -> List[Dict[str, str]]:
         """Fetches the tags available for an image in DockerHub
 
         Args:

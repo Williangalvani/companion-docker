@@ -20,7 +20,7 @@ static_files = {
     "js/jquery.js": "https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js",
     "css/metro-all.css": "https://cdnjs.cloudflare.com/ajax/libs/metro/4.4.3/css/metro-all.css",
     "mif/metro.woff": "https://cdnjs.cloudflare.com/ajax/libs/metro/4.4.3/mif/metro.woff",
-    "mif/metro.ttf": "https://cdnjs.cloudflare.com/ajax/libs/metro/4.4.3/mif/metro.ttf"
+    "mif/metro.ttf": "https://cdnjs.cloudflare.com/ajax/libs/metro/4.4.3/mif/metro.ttf",
 }
 
 current_folder = pathlib.Path(__file__).parent.absolute()
